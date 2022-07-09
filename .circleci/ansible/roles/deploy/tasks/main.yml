@@ -1,0 +1,21 @@
+# - name: Extract backend files
+#   unarchive:
+#     src: backend.tar.gz
+#     dest: .
+#     remote_src: yes
+
+# # - name: Print
+#   shell: |
+#     ls
+#     pwd
+#     npm install
+#     pm2 stop default
+#     pm2 start npm -- start
+  environment:
+    - ARTIFACT: "{{ lookup('env', 'ARTIFACT')}}"
+
+- name: Print
+  shell: |
+    cat .env
+    cat env
+    cat ARTIFACT
