@@ -157,8 +157,8 @@ jobs:
           command: |
             aws ec2 describe-instances \
               --query 'Reservations[*].Instances[*].PublicIpAddress' \
-              --output text >> .circleci/ansible/inventory.txt
-            cat .circleci/ansible/inventory.txt
+              --output text >> ~/project/.circleci/ansible/inventory.txt
+            cat ~/project/.circleci/ansible/inventory.txt
       - persist_to_workspace:
           root: ~/
           paths:
@@ -173,17 +173,18 @@ jobs:
       - add_ssh_keys:
           fingerprints: ['9e:b6:ed:f1:bc:0b:17:37:aa:07:ad:fa:49:f2:7d:ea']
       - attach_workspace:
-          at: .
+          at: ~/
       - run:
           name: Install dependencies
           command: |
-            apk add --update ansible
+            apk add --update --no-cache ansible tar gzip 
             pip install awscli
       - run:
           name: Configure server
           command: |
-            cat project/.circleci/ansible/inventory.txt
-            ansible-playbook -i project/.circleci/ansible/inventory.txt ./.circleci/ansible/configure-server.yml
+            cat .circleci/ansible/inventory.txt
+            cd .circleci/ansible
+            ansible-playbook -i inventory.txt configure-server.yml
       - destroy-environment
 
   run-migrations:
@@ -196,6 +197,8 @@ jobs:
           command: |
             sudo apt-get update
             sudo apt-get -y install awscli
+      - restore_cache:
+          keys: [build-backend]
       - run:
           name: Run migrations
           command: |
@@ -232,6 +235,8 @@ jobs:
             API_URL="http://${BACKEND_IP}:3030"
             echo "API_URL = ${API_URL}"
             echo API_URL="http://${BACKEND_IP}:3030" >> frontend/.env
+      # - restore_cache:
+      #     keys: [build-frontend]
       - run:
           name: Deploy frontend objects
           command: |
@@ -251,7 +256,9 @@ jobs:
       - add_ssh_keys:
           fingerprints: ['9e:b6:ed:f1:bc:0b:17:37:aa:07:ad:fa:49:f2:7d:ea']
       - attach_workspace:
-          at: .
+          at: ~/
+      # - restore_cache:
+      #   keys: [build-backend]
       - run:
           name: Install dependencies
           command: |
@@ -262,16 +269,19 @@ jobs:
       - run:
           name: Deploy backend
           command: |
-            # cd backend
-            # npm i
-            # npm run build
-            # cd ..
-            #tar -czvf backend.tar.gz backend
-            echo ARTIFACT=test >> ".env"
-      #       cat project/.circleci/ansible/inventory.txt
-      #       ansible-playbook -i project/.circleci/ansible/inventory.txt .circleci/ansible/deploy-backend.yml
-      # - destroy-environment
-      # - revert-migrations
+            cd backend
+            npm i
+            npm run build
+            cd ..
+            tar -C backend -czvf artifact.tar.gz .
+            mkdir ~/project/.circleci/ansible/roles/deploy/files
+            mv artifact.tar.gz .circleci/ansible/roles/deploy/files/artifact.tar.gz
+            cd .circleci/ansible
+            echo "Contents  of the inventory.txt file is -------"
+            cat inventory.txt
+            ansible-playbook -i inventory.txt deploy-backend.yml
+      - destroy-environment
+      - revert-migrations
 
   smoke-test:
     docker:
@@ -331,17 +341,16 @@ workflows:
       #     context:
       #       - benji-context
       #     requires: [build-backend]
-      # - deploy-infrastructure:
-      #     #requires: [test-frontend, test-backend, scan-frontend, scan-backend]
-      #     filters:
-      #       branches:
-      #         only: [main]
-      # - configure-infrastructure:
-      #     requires: [deploy-infrastructure]
-      # - run-migrations:
-      #     requires: [configure-infrastructure]
-      # - deploy-frontend:
-      #     requires: [run-migrations]
-      - deploy-backend
-        #requires: [run-migrations]
-        # requires: [configure-infrastructure]
+      - deploy-infrastructure
+        # requires: [test-frontend, test-backend, scan-frontend, scan-backend]
+        # filters:
+        #   branches:
+        #     only: [main]
+      - configure-infrastructure:
+          requires: [deploy-infrastructure]
+      - run-migrations:
+          requires: [configure-infrastructure]
+      - deploy-frontend:
+          requires: [run-migrations]
+      - deploy-backend:
+          requires: [run-migrations]
