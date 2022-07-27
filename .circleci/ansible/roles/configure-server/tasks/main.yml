@@ -1,37 +1,37 @@
 ---
 # Install python
-- name: Install prerequisites
+- name: 'Install prerequisites'
   become: true
-  apt: 
-    name: python3-software-properties 
+  apt:
+    name: python3-software-properties
     state: present
 
-- name: Add deadsnakes repo
+- name: 'Add deadsnakes repo'
   become: true
-  apt_repository: 
-    repo: "ppa:deadsnakes/ppa"
+  apt_repository:
+    repo: 'ppa:deadsnakes/ppa'
 
 - name: Install python
   become: true
-  apt: 
+  apt:
     name: python3
     state: present
 
 # Update/upgrade packages
-- name: "upgrade packages."
+- name: 'upgrade packages.'
   become: true
   apt:
-    upgrade: "yes"
+    upgrade: 'yes'
 
 # Install dependencies
-- name: "install dependencies."
+- name: 'install dependencies.'
   become: true
   apt:
-    name: ["nodejs", "npm"]
+    name: ['nodejs', 'npm']
     state: latest
     update_cache: yes
 
-- name: "install pm2"
+- name: 'install pm2'
   become: true
   npm:
     name: pm2
